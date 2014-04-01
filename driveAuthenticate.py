@@ -2,6 +2,8 @@ import logging
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
 from apiclient.discovery import build
+from pprint import pprint
+import httplib2
 
 
 # copied from https://developers.google.com/drive/web/auth/web-server
@@ -17,14 +19,36 @@ from apiclient.discovery import build
 #       "token_uri": "https://accounts.google.com/o/oauth2/token"
 #     }
 #   }
-CLIENTSECRETS_LOCATION = '<PATH/TO/CLIENT_SECRETS.JSON>'
-REDIRECT_URI = '<YOUR_REGISTERED_REDIRECT_URI>'
+#Determine this at the google developer console >> API and Auth
+CLIENTSECRETS_LOCATION = 'private/client_secrets.json'
+REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'
 SCOPES = [
     'https://www.googleapis.com/auth/drive.file',
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile',
     # Add other requested scopes.
 ]
+
+#First, get the url for the user to visit, which will display a code
+
+def get_authorization_url(email_address, state):
+  """Retrieve the authorization URL.
+
+  Args:
+    email_address: User's e-mail address.
+    state: State for the authorization URL.
+  Returns:
+    Authorization URL to redirect the user to.
+    
+  """
+  flow = flow_from_clientsecrets(CLIENTSECRETS_LOCATION, ' '.join(SCOPES))
+  flow.params['access_type'] = 'offline'
+  flow.params['approval_prompt'] = 'force'
+  flow.params['user_id'] = email_address
+  flow.params['state'] = state
+  return flow.step1_get_authorize_url(REDIRECT_URI)
+
+
 
 class GetCredentialsException(Exception):
   """Error raised when an error occurred while retrieving credentials.
@@ -130,21 +154,6 @@ def get_user_info(credentials):
     raise NoUserIdException()
 
 
-def get_authorization_url(email_address, state):
-  """Retrieve the authorization URL.
-
-  Args:
-    email_address: User's e-mail address.
-    state: State for the authorization URL.
-  Returns:
-    Authorization URL to redirect the user to.
-  """
-  flow = flow_from_clientsecrets(CLIENTSECRETS_LOCATION, ' '.join(SCOPES))
-  flow.params['access_type'] = 'offline'
-  flow.params['approval_prompt'] = 'force'
-  flow.params['user_id'] = email_address
-  flow.params['state'] = state
-  return flow.step1_get_authorize_url(REDIRECT_URI)
 
 
 def get_credentials(authorization_code, state):
